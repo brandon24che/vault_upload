@@ -1,0 +1,116 @@
+{
+  "users": [
+    {
+      "id": "user-freelancer-1",
+      "email": "alex@designer.studio",
+      "name": "Alex Rivera",
+      "role": "freelancer",
+      "passwordHash": "76bf390c8d330fddaa5a328f716f2d3939202aa609756bdb2c8eb31043d64ebc1c3c26ac5979e92f70d10d53c396cf7bb050b58fd3055503485ed0bb38acc06d",
+      "salt": "dd5803dcd0047bc1a5708fb46399d788",
+      "createdAt": "2026-08-04T01:34:26.475Z"
+    },
+    {
+      "id": "user-client-1",
+      "email": "sarah@acme.inc",
+      "name": "Sarah Chen (Acme)",
+      "role": "client",
+      "passwordHash": "eda96cbfe63eb6ef7cd6d818b3d3d0b43d88e1f6a5cef0a4e2426b5bb73a8571213b71caf3be96df46329105ddeb3650008d49b7e3b0040adc29bdfbf16ea273",
+      "salt": "1e3fb2ba26f02de1daffb170eeb05000",
+      "createdAt": "2026-08-19T01:34:26.475Z"
+    },
+    {
+      "id": "uoWuec3GfpdxTPOxM0GexzVwWZr1",
+      "email": "cheec700@gmail.com",
+      "name": "cheec700",
+      "role": "freelancer",
+      "passwordHash": "",
+      "salt": "",
+      "createdAt": "2026-09-03T02:35:46.303Z"
+    },
+    {
+      "id": "rAn6yXK2R8cULVtQuJ4Qvm0DkTE2",
+      "email": "cheec701@gmail.com",
+      "name": "cheec701",
+      "role": "freelancer",
+      "passwordHash": "",
+      "salt": "",
+      "createdAt": "2026-09-03T02:53:42.550Z"
+    },
+    {
+      "id": "OP8cEaPrWJcWPuT5PSxGD3Efacn1",
+      "email": "admin@clientvault.app",
+      "name": "System Administrator",
+      "role": "admin",
+      "passwordHash": "",
+      "salt": "",
+      "createdAt": "2026-07-05T03:34:33.907Z"
+    }
+  ],
+  "files": [
+    {
+      "id": "file-demo-1",
+      "userId": "user-freelancer-1",
+      "originalName": "Brand_Guidelines_2026_Final.pdf",
+      "storedFileName": "sample_brand_guidelines.pdf",
+      "mimeType": "application/pdf",
+      "size": 3450000,
+      "uploadDate": "2026-08-31T01:34:26.475Z",
+      "clientTag": "Acme Rebrand",
+      "category": "document"
+    },
+    {
+      "id": "file-demo-2",
+      "userId": "user-freelancer-1",
+      "originalName": "Homepage_Hero_Mockup_v4.png",
+      "storedFileName": "sample_mockup.png",
+      "mimeType": "image/png",
+      "size": 1840000,
+      "uploadDate": "2026-09-02T01:34:26.475Z",
+      "clientTag": "Acme Rebrand",
+      "category": "image"
+    },
+    {
+      "id": "file-demo-3",
+      "userId": "user-freelancer-1",
+      "originalName": "Design_System_Icons.zip",
+      "storedFileName": "sample_icons.zip",
+      "mimeType": "application/zip",
+      "size": 5200000,
+      "uploadDate": "2026-09-02T20:34:26.475Z",
+      "clientTag": "Design Tokens",
+      "category": "archive"
+    },
+    {
+      "id": "file-demo-4",
+      "userId": "user-client-1",
+      "originalName": "Acme_Q3_Feedback_Notes.docx",
+      "storedFileName": "sample_notes.docx",
+      "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "size": 420000,
+      "uploadDate": "2026-09-01T01:34:26.475Z",
+      "clientTag": "Review Batch #1",
+      "category": "document"
+    },
+    {
+      "id": "file-demo-5",
+      "userId": "user-client-1",
+      "originalName": "Raw_Product_Photos.zip",
+      "storedFileName": "sample_photos.zip",
+      "mimeType": "application/zip",
+      "size": 14200000,
+      "uploadDate": "2026-09-02T17:34:26.475Z",
+      "clientTag": "Assets for Alex",
+      "category": "archive"
+    },
+    {
+      "id": "file-d90c736a-eeb1-46dd-83fa-f0719343ef39",
+      "userId": "rAn6yXK2R8cULVtQuJ4Qvm0DkTE2",
+      "originalName": "Google_AI_Studio_Firebase_Guide.pdf",
+      "storedFileName": "1788405913601-981508708.pdf",
+      "mimeType": "application/pdf",
+      "size": 21553,
+      "uploadDate": "2026-09-03T03:25:13.607Z",
+      "category": "document"
+    }
+  ]
+}

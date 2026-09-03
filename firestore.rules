@@ -1,0 +1,62 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny all queries and writes
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Designated Admin User ID and authorized admin accounts
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.uid == 'OP8cEaPrWJcWPuT5PSxGD3Efacn1' ||
+        (request.auth.token.email != null && (
+          request.auth.token.email == 'admin@clientvault.app' ||
+          request.auth.token.email == 'cheec702@gmail.com'
+        ))
+      );
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // USERS COLLECTION:
+    // Admin user ID (OP8cEaPrWJcWPuT5PSxGD3Efacn1) has full read access to all user profiles.
+    // Regular users have read/write access ONLY to their own user profile document.
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if (isOwner(userId) || isAdmin()) && isValidId(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+
+      // Nested subcollection for user files
+      match /files/{fileId} {
+        allow get, list: if isOwner(userId) || isAdmin();
+        allow create, update, delete: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    // ROOT FILES COLLECTION:
+    // Admin user ID (OP8cEaPrWJcWPuT5PSxGD3Efacn1) has full read access to all files.
+    // Regular users can only read, list, and write files where resource.data.userId == request.auth.uid.
+    match /files/{fileId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (isAdmin() || (resource.data.userId == request.auth.uid));
+      allow create: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+  }
+}

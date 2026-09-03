@@ -1,0 +1,90 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered user profile in ClientVault",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique user ID (auth UID)"
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the user"
+        },
+        "role": {
+          "type": "string",
+          "description": "Role in the system (freelancer, client, admin)"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp of the account"
+        },
+        "fileCount": {
+          "type": "number",
+          "description": "Count of uploaded files in the vault"
+        }
+      },
+      "required": ["id", "email", "createdAt"]
+    },
+    "File": {
+      "title": "File",
+      "description": "Metadata for files stored in the vault",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique file identifier"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID"
+        },
+        "originalName": {
+          "type": "string",
+          "description": "Original file name"
+        },
+        "mimeType": {
+          "type": "string",
+          "description": "File MIME type"
+        },
+        "size": {
+          "type": "number",
+          "description": "File size in bytes"
+        },
+        "uploadDate": {
+          "type": "string",
+          "description": "Timestamp when file was uploaded"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category: document, image, design, archive, media, other"
+        },
+        "clientTag": {
+          "type": "string",
+          "description": "Optional tag for client or project"
+        }
+      },
+      "required": ["id", "userId", "originalName", "size", "uploadDate"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles collection. Admin has read access to all users, normal users access only their own."
+    },
+    "/files/{fileId}": {
+      "schema": "File",
+      "description": "Files metadata collection. Admin has read access to all files, normal users access only their own."
+    },
+    "/users/{userId}/files/{fileId}": {
+      "schema": "File",
+      "description": "User subcollection for files metadata."
+    }
+  }
+}
