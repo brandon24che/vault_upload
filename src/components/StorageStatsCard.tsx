@@ -1,17 +1,28 @@
-import { HardDrive, FileText, Image as ImageIcon, Palette, Archive, Layers } from 'lucide-react';
+import { HardDrive, Sparkles, AlertTriangle } from 'lucide-react';
 import { StorageStats } from '../types.ts';
 import { formatBytes } from '../lib/formatters.ts';
 
 interface StorageStatsCardProps {
   stats: StorageStats | null;
+  fileCount?: number;
+  maxFiles?: number;
+  isLimitReached?: boolean;
+  onOpenUpgrade?: () => void;
 }
 
-export function StorageStatsCard({ stats }: StorageStatsCardProps) {
+export function StorageStatsCard({
+  stats,
+  fileCount,
+  maxFiles = 5,
+  isLimitReached = false,
+  onOpenUpgrade,
+}: StorageStatsCardProps) {
   if (!stats) return null;
 
   const used = stats.usedBytes || 0;
   const max = stats.maxBytes || 500 * 1024 * 1024;
   const percentage = Math.min(100, Math.round((used / max) * 100));
+  const currentFileCount = fileCount ?? stats.totalFiles;
 
   return (
     <div id="storage-metrics-overview" className="bg-white rounded-xl border border-slate-200 shadow-xs p-5 mb-8">
@@ -21,16 +32,34 @@ export function StorageStatsCard({ stats }: StorageStatsCardProps) {
             <HardDrive className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-slate-900">Vault Capacity & Usage</h3>
-            <p className="text-xs text-slate-500">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-slate-900">Vault Capacity & Usage</h3>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                Free Plan: {currentFileCount}/{maxFiles} files
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
               {stats.totalFiles} {stats.totalFiles === 1 ? 'file' : 'files'} stored with row-level security
             </p>
           </div>
         </div>
 
-        <div className="text-right sm:text-right flex items-baseline gap-1.5 sm:block">
-          <span className="text-sm font-bold text-slate-900">{formatBytes(used)}</span>
-          <span className="text-xs text-slate-500"> of {formatBytes(max)} ({percentage}%)</span>
+        <div className="flex flex-col sm:items-end gap-1">
+          <div className="text-right sm:text-right flex items-baseline gap-1.5 sm:block">
+            <span className="text-sm font-bold text-slate-900">{formatBytes(used)}</span>
+            <span className="text-xs text-slate-500"> of {formatBytes(max)} ({percentage}%)</span>
+          </div>
+          {isLimitReached && onOpenUpgrade && (
+            <button
+              id="stats-upgrade-btn"
+              type="button"
+              onClick={onOpenUpgrade}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
+            >
+              <Sparkles className="w-3 h-3 text-amber-600" />
+              <span>Limit Reached • Upgrade Plan</span>
+            </button>
+          )}
         </div>
       </div>
 

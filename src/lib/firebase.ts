@@ -10,6 +10,7 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged,
   reload,
+  applyActionCode,
   User as FirebaseUser
 } from "firebase/auth";
 
@@ -69,6 +70,7 @@ export {
   firebaseSignOut,
   onAuthStateChanged,
   reload,
+  applyActionCode,
   // Firestore exports
   collection,
   doc,

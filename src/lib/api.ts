@@ -7,6 +7,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   firebaseSignOut,
+  applyActionCode,
   FirebaseUser 
 } from './firebase.ts';
 import { 
@@ -104,6 +105,28 @@ export async function login(email: string, password: string): Promise<AuthRespon
   }
 }
 
+/**
+ * Sends email verification with proper ActionCodeSettings to return the user
+ * back to the application URL upon confirmation, with fallback to standard verification.
+ */
+async function sendVerificationSafe(user: FirebaseUser): Promise<void> {
+  try {
+    const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : '';
+    // If not local development, pass the deployed origin so the user is brought back cleanly
+    if (origin && !origin.includes('localhost')) {
+      await sendEmailVerification(user, {
+        url: `${origin}/?verified=true`,
+        handleCodeInApp: false,
+      });
+      return;
+    }
+  } catch (err) {
+    console.warn('[Firebase Auth] ActionCodeSettings fallback notice:', err);
+  }
+  // Standard verification email send
+  await sendEmailVerification(user);
+}
+
 export async function registerWithEmail(
   email: string,
   password: string
@@ -111,7 +134,7 @@ export async function registerWithEmail(
   try {
     const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
     // Send email verification link
-    await sendEmailVerification(credential.user);
+    await sendVerificationSafe(credential.user);
     // Immediately sign out so user cannot log in until email is verified
     await firebaseSignOut(auth);
     clearSession();
@@ -148,7 +171,7 @@ export async function resendVerificationEmail(email: string, password?: string):
   try {
     if (password) {
       const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
-      await sendEmailVerification(credential.user);
+      await sendVerificationSafe(credential.user);
       await firebaseSignOut(auth);
     } else {
       throw new Error('Password is required to resend verification email.');
@@ -159,6 +182,19 @@ export async function resendVerificationEmail(email: string, password?: string):
       throw new Error('Too many requests sent. Please check your inbox or wait a few minutes.');
     }
     throw new Error(errorObj?.message || 'Failed to resend verification email.');
+  }
+}
+
+/**
+ * Verifies email when a user clicks the verification link (handles Firebase oobCode).
+ */
+export async function verifyEmailWithActionCode(oobCode: string): Promise<boolean> {
+  try {
+    await applyActionCode(auth, oobCode);
+    return true;
+  } catch (err) {
+    console.error('Failed to verify email with action code:', err);
+    throw err;
   }
 }
 

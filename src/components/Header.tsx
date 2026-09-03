@@ -1,4 +1,4 @@
-import { Menu, Upload, LogOut, Shield, User as UserIcon } from 'lucide-react';
+import { Menu, Upload, LogOut, Shield, Sparkles } from 'lucide-react';
 import { User } from '../types.ts';
 
 interface HeaderProps {
@@ -7,6 +7,8 @@ interface HeaderProps {
   onOpenUpload: () => void;
   onSignOut: () => void;
   categoryTitle: string;
+  isLimitReached?: boolean;
+  onOpenUpgrade?: () => void;
 }
 
 export function Header({
@@ -15,6 +17,8 @@ export function Header({
   onOpenUpload,
   onSignOut,
   categoryTitle,
+  isLimitReached = false,
+  onOpenUpgrade,
 }: HeaderProps) {
   return (
     <header
@@ -48,14 +52,39 @@ export function Header({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
-        <button
-          onClick={onOpenUpload}
-          id="header-upload-btn"
-          className="inline-flex items-center gap-1.5 py-2 px-3.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-        >
-          <Upload className="w-3.5 h-3.5" />
-          <span>Upload File</span>
-        </button>
+        {isLimitReached ? (
+          <>
+            <button
+              disabled
+              id="header-upload-btn"
+              title="You’ve reached the free plan limit."
+              className="inline-flex items-center gap-1.5 py-2 px-3.5 rounded-lg bg-slate-100 text-slate-400 border border-slate-200 text-xs font-semibold cursor-not-allowed"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>Add File</span>
+            </button>
+            {onOpenUpgrade && (
+              <button
+                type="button"
+                onClick={onOpenUpgrade}
+                id="header-upgrade-btn"
+                className="inline-flex items-center gap-1.5 py-2 px-3.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Upgrade (5/5)</span>
+              </button>
+            )}
+          </>
+        ) : (
+          <button
+            onClick={onOpenUpload}
+            id="header-upload-btn"
+            className="inline-flex items-center gap-1.5 py-2 px-3.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <span>Add File</span>
+          </button>
+        )}
 
         <button
           onClick={onSignOut}

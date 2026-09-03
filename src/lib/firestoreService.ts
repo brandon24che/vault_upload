@@ -8,7 +8,8 @@ import {
   setDoc, 
   deleteDoc, 
   query, 
-  where 
+  where,
+  onSnapshot
 } from './firebase.ts';
 import { User, VaultFile, FirestoreUser } from '../types.ts';
 
@@ -109,24 +110,38 @@ export async function syncUserToFirestore(user: User): Promise<void> {
   }
 }
 
+export const FREE_PLAN_LIMIT = 5;
+
 /**
- * Records newly uploaded file in Firestore `files` collection and increments user file count.
+ * Records newly uploaded file in Firestore `files` collection,
+ * subcollection `users/{uid}/files/{fileId}`, and increments user file count.
  */
 export async function syncFileToFirestore(file: VaultFile): Promise<void> {
   const filePath = `files/${file.id}`;
+  const userSubPath = `users/${file.userId}/files/${file.id}`;
+  const fileData = {
+    id: file.id,
+    userId: file.userId,
+    originalName: file.originalName,
+    storedFileName: file.storedFileName || '',
+    mimeType: file.mimeType || 'application/octet-stream',
+    size: file.size,
+    uploadDate: file.uploadDate,
+    category: file.category,
+    clientTag: file.clientTag || '',
+  };
+
   try {
     const fileRef = doc(db, 'files', file.id);
-    await setDoc(fileRef, {
-      id: file.id,
-      userId: file.userId,
-      originalName: file.originalName,
-      storedFileName: file.storedFileName || '',
-      mimeType: file.mimeType || 'application/octet-stream',
-      size: file.size,
-      uploadDate: file.uploadDate,
-      category: file.category,
-      clientTag: file.clientTag || '',
-    });
+    await setDoc(fileRef, fileData);
+
+    // Sync to users/{uid}/files/{fileId} subcollection
+    try {
+      const userFileRef = doc(db, 'users', file.userId, 'files', file.id);
+      await setDoc(userFileRef, fileData, { merge: true });
+    } catch (subErr) {
+      console.warn(`[Firestore] Notice during user subcollection sync to ${userSubPath}:`, subErr);
+    }
 
     // Also update fileCount on the user's document
     const userRef = doc(db, 'users', file.userId);
@@ -141,12 +156,20 @@ export async function syncFileToFirestore(file: VaultFile): Promise<void> {
 }
 
 /**
- * Removes file from Firestore and decrements user's fileCount.
+ * Removes file from Firestore `files` collection and `users/{uid}/files/{fileId}` subcollection,
+ * and decrements user's fileCount.
  */
 export async function syncDeleteFileFromFirestore(fileId: string, userId: string): Promise<void> {
   const filePath = `files/${fileId}`;
+  const userSubPath = `users/${userId}/files/${fileId}`;
   try {
     await deleteDoc(doc(db, 'files', fileId));
+
+    try {
+      await deleteDoc(doc(db, 'users', userId, 'files', fileId));
+    } catch (subErr) {
+      console.warn(`[Firestore] Notice during file deletion from ${userSubPath}:`, subErr);
+    }
 
     const userRef = doc(db, 'users', userId);
     const userSnap = await getDoc(userRef);
@@ -156,6 +179,73 @@ export async function syncDeleteFileFromFirestore(fileId: string, userId: string
     }
   } catch (error) {
     console.warn(`[Firestore] Notice during file deletion from ${filePath}:`, error);
+  }
+}
+
+/**
+ * Counts files directly under `users/{uid}/files` subcollection.
+ */
+export async function countUserSubcollectionFiles(userId: string): Promise<number> {
+  if (!userId) return 0;
+  try {
+    const userFilesCol = collection(db, 'users', userId, 'files');
+    const snap = await getDocs(userFilesCol);
+    return snap.size;
+  } catch (err) {
+    console.warn(`[Firestore] Notice counting users/${userId}/files:`, err);
+    return 0;
+  }
+}
+
+/**
+ * Subscribes to real-time changes in `users/{uid}/files` subcollection.
+ */
+export function subscribeUserFilesCount(
+  userId: string,
+  onCount: (count: number) => void
+): () => void {
+  if (!userId) return () => {};
+  try {
+    const userFilesCol = collection(db, 'users', userId, 'files');
+    return onSnapshot(
+      userFilesCol,
+      (snap) => {
+        onCount(snap.size);
+      },
+      (err) => {
+        console.warn(`[Firestore] Notice on snapshot for users/${userId}/files:`, err);
+      }
+    );
+  } catch (err) {
+    console.warn(`[Firestore] Error subscribing to users/${userId}/files:`, err);
+    return () => {};
+  }
+}
+
+/**
+ * Batch syncs user's files list to `users/{uid}/files` subcollection.
+ */
+export async function syncUserFilesSubcollection(userId: string, files: VaultFile[]): Promise<void> {
+  if (!userId || !Array.isArray(files) || files.length === 0) return;
+  try {
+    for (const f of files) {
+      if (f.userId === userId) {
+        const userFileRef = doc(db, 'users', userId, 'files', f.id);
+        await setDoc(userFileRef, {
+          id: f.id,
+          userId: f.userId,
+          originalName: f.originalName,
+          storedFileName: f.storedFileName || '',
+          mimeType: f.mimeType || 'application/octet-stream',
+          size: f.size,
+          uploadDate: f.uploadDate,
+          category: f.category,
+          clientTag: f.clientTag || '',
+        }, { merge: true });
+      }
+    }
+  } catch (err) {
+    console.warn(`[Firestore] Notice during syncUserFilesSubcollection for ${userId}:`, err);
   }
 }
 
@@ -269,6 +359,11 @@ export async function seedInitialFirestoreData(): Promise<void> {
 
       for (const f of sampleFiles) {
         await setDoc(doc(db, 'files', f.id), f, { merge: true });
+        try {
+          await setDoc(doc(db, 'users', f.userId, 'files', f.id), f, { merge: true });
+        } catch {
+          // ignore
+        }
       }
     }
   } catch (err) {

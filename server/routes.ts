@@ -206,6 +206,13 @@ router.post(
     }
 
     const userId = req.user!.id;
+    const isAdmin = req.user?.id === 'OP8cEaPrWJcWPuT5PSxGD3Efacn1' || req.user?.role === 'admin';
+    const db = getDb();
+    const currentUserFilesCount = db.files.filter(f => f.userId === userId).length;
+    if (!isAdmin && currentUserFilesCount >= 5) {
+      return res.status(403).json({ error: "You’ve reached the free plan limit." });
+    }
+
     const clientTag = (req.body.clientTag || '').trim();
     const category = categorizeFile(file.mimetype, file.originalname);
 
@@ -221,7 +228,6 @@ router.post(
       category,
     };
 
-    const db = getDb();
     db.files.push(newFileRecord);
     saveDb(db);
 

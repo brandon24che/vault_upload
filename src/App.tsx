@@ -17,12 +17,21 @@ import {
   logout,
   mapFirebaseUser,
   setSession,
-  clearSession
+  clearSession,
+  verifyEmailWithActionCode
 } from './lib/api.ts';
 import { auth, onAuthStateChanged } from './lib/firebase.ts';
 import { User, VaultFile, StorageStats } from './types.ts';
 import { AdminDashboard } from './components/AdminDashboard.tsx';
-import { ADMIN_USER_ID } from './lib/firestoreService.ts';
+import { UpgradeModal } from './components/UpgradeModal.tsx';
+import { 
+  ADMIN_USER_ID, 
+  FREE_PLAN_LIMIT, 
+  subscribeUserFilesCount, 
+  syncUserFilesSubcollection,
+  syncFileToFirestore,
+  syncDeleteFileFromFirestore
+} from './lib/firestoreService.ts';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -31,6 +40,10 @@ export default function App() {
   const [stats, setStats] = useState<StorageStats | null>(null);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('all');
+  
+  // Free-plan tracking and Upgrade Modal
+  const [subcollectionFileCount, setSubcollectionFileCount] = useState<number>(0);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   
   // Modals & interaction state
   const [previewFile, setPreviewFile] = useState<VaultFile | null>(null);
@@ -88,6 +101,44 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  // Handle email verification links or returns (mode=verifyEmail with oobCode)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get('mode');
+    const oobCode = params.get('oobCode');
+    const verifiedParam = params.get('verified') || params.get('emailVerified');
+
+    if (mode === 'verifyEmail' && oobCode) {
+      verifyEmailWithActionCode(oobCode)
+        .then(() => {
+          addToast('success', 'Your email address has been successfully verified! You can now sign in.');
+          window.history.replaceState({}, document.title, window.location.pathname);
+        })
+        .catch((err) => {
+          console.error('Email verification error:', err);
+          addToast('error', 'The email verification link has expired or has already been used.');
+          window.history.replaceState({}, document.title, window.location.pathname);
+        });
+    } else if (verifiedParam === 'true') {
+      addToast('success', 'Email verification confirmed! Please sign in to access your vault.');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  // Real-time listener for files under users/{uid}/files
+  useEffect(() => {
+    if (!currentUser || currentUser.id === ADMIN_USER_ID || currentUser.role === 'admin') {
+      setSubcollectionFileCount(0);
+      return;
+    }
+
+    const unsubscribe = subscribeUserFilesCount(currentUser.id, (count) => {
+      setSubcollectionFileCount(count);
+    });
+
+    return () => unsubscribe();
+  }, [currentUser?.id, currentUser?.role]);
+
   // Fetch files and storage stats when user or category changes
   const loadVaultData = async () => {
     if (!currentUser) return;
@@ -99,6 +150,11 @@ export default function App() {
       ]);
       setFiles(filesList);
       setStats(storageStats);
+
+      // Ensure user's files are synced to users/{uid}/files in Firestore
+      if (filesList.length > 0) {
+        syncUserFilesSubcollection(currentUser.id, filesList).catch(() => {});
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to retrieve vault data.';
       addToast('error', msg);
@@ -118,11 +174,14 @@ export default function App() {
     setCurrentUser(null);
     setFiles([]);
     setStats(null);
+    setSubcollectionFileCount(0);
     addToast('info', 'You have been safely signed out.');
   };
 
   const handleFileUploaded = (newFile: VaultFile) => {
     setFiles((prev) => [newFile, ...prev]);
+    // Sync newly uploaded file to Firestore files and users/{uid}/files
+    syncFileToFirestore(newFile).catch(() => {});
     // Refresh stats
     fetchStorageStats().then((s) => setStats(s)).catch(() => {});
   };
@@ -137,6 +196,9 @@ export default function App() {
 
     try {
       await deleteFile(fileToDelete.id);
+      if (currentUser) {
+        syncDeleteFileFromFirestore(fileToDelete.id, currentUser.id).catch(() => {});
+      }
       setFiles((prev) => prev.filter((f) => f.id !== fileToDelete.id));
       addToast('success', `"${fileToDelete.originalName}" was deleted.`);
       setFileToDelete(null);
@@ -226,7 +288,11 @@ export default function App() {
     );
   }
 
-  // Regular signed-in users: show normal personal dashboard
+  // Regular signed-in users: evaluate free-plan limit based on users/{uid}/files
+  const isRegularUser = Boolean(currentUser && currentUser.id !== ADMIN_USER_ID && currentUser.role !== 'admin');
+  const userFilesCount = Math.max(subcollectionFileCount, files.length);
+  const isLimitReached = isRegularUser && userFilesCount >= FREE_PLAN_LIMIT;
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex">
       {/* Dark Navy Sidebar */}
@@ -239,6 +305,10 @@ export default function App() {
         stats={stats}
         mobileOpen={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
+        isLimitReached={isLimitReached}
+        fileCount={userFilesCount}
+        maxFiles={FREE_PLAN_LIMIT}
+        onOpenUpgrade={() => setIsUpgradeModalOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -249,17 +319,29 @@ export default function App() {
           onOpenUpload={scrollToUpload}
           onSignOut={handleSignOut}
           categoryTitle={getCategoryTitle()}
+          isLimitReached={isLimitReached}
+          onOpenUpgrade={() => setIsUpgradeModalOpen(true)}
         />
 
         <main className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto">
           {/* Storage Capacity Bar */}
-          <StorageStatsCard stats={stats} />
+          <StorageStatsCard
+            stats={stats}
+            fileCount={userFilesCount}
+            maxFiles={FREE_PLAN_LIMIT}
+            isLimitReached={isLimitReached}
+            onOpenUpgrade={() => setIsUpgradeModalOpen(true)}
+          />
 
           {/* Upload Area */}
           <div ref={uploadAreaRef}>
             <UploadArea
               onFileUploaded={handleFileUploaded}
               onToast={addToast}
+              isLimitReached={isLimitReached}
+              fileCount={userFilesCount}
+              maxFiles={FREE_PLAN_LIMIT}
+              onOpenUpgrade={() => setIsUpgradeModalOpen(true)}
             />
           </div>
 
@@ -276,6 +358,13 @@ export default function App() {
       </div>
 
       {/* Modals & Feedback */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        fileCount={userFilesCount}
+        maxFiles={FREE_PLAN_LIMIT}
+      />
+
       <FilePreviewModal
         file={previewFile}
         onClose={() => setPreviewFile(null)}

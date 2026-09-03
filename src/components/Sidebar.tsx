@@ -9,7 +9,8 @@ import {
   HardDrive, 
   User as UserIcon,
   Upload,
-  Layers
+  Layers,
+  Sparkles
 } from 'lucide-react';
 import { User, StorageStats } from '../types.ts';
 import { formatBytes } from '../lib/formatters.ts';
@@ -23,6 +24,10 @@ interface SidebarProps {
   stats: StorageStats | null;
   mobileOpen: boolean;
   onCloseMobile: () => void;
+  isLimitReached?: boolean;
+  fileCount?: number;
+  maxFiles?: number;
+  onOpenUpgrade?: () => void;
 }
 
 export function Sidebar({
@@ -34,6 +39,10 @@ export function Sidebar({
   stats,
   mobileOpen,
   onCloseMobile,
+  isLimitReached = false,
+  fileCount = 0,
+  maxFiles = 5,
+  onOpenUpgrade,
 }: SidebarProps) {
   const navItems = [
     { id: 'all', label: 'All Files', icon: Files },
@@ -79,18 +88,45 @@ export function Sidebar({
             </div>
           </div>
 
-          {/* Quick Action: Upload */}
-          <button
-            id="sidebar-upload-btn"
-            onClick={() => {
-              onOpenUpload();
-              onCloseMobile();
-            }}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-sky-500 hover:bg-sky-400 text-white font-medium text-sm transition-colors shadow-sm cursor-pointer mb-6"
-          >
-            <Upload className="w-4 h-4" />
-            <span>Upload New File</span>
-          </button>
+          {/* Quick Action: Upload / Add File */}
+          {isLimitReached ? (
+            <div className="mb-6 space-y-2">
+              <button
+                id="sidebar-upload-btn"
+                disabled
+                title="You’ve reached the free plan limit."
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-slate-800 text-slate-500 font-medium text-sm cursor-not-allowed border border-slate-700/60"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Add File</span>
+              </button>
+              {onOpenUpgrade && (
+                <button
+                  id="sidebar-upgrade-btn"
+                  onClick={() => {
+                    onOpenUpgrade();
+                    onCloseMobile();
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-semibold text-xs transition-all shadow-sm cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Upgrade Plan (5/5 Limit)</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <button
+              id="sidebar-upload-btn"
+              onClick={() => {
+                onOpenUpload();
+                onCloseMobile();
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-sky-500 hover:bg-sky-400 text-white font-medium text-sm transition-colors shadow-sm cursor-pointer mb-6"
+            >
+              <Upload className="w-4 h-4" />
+              <span>Add File</span>
+            </button>
+          )}
 
           {/* Navigation Section */}
           <div className="space-y-1">
@@ -172,6 +208,25 @@ export function Sidebar({
               <span>{formatBytes(usedBytes)}</span>
               <span>{formatBytes(maxBytes)}</span>
             </div>
+          </div>
+
+          {/* Plan status */}
+          <div className="mb-3 px-2.5 py-1.5 rounded-lg bg-slate-850/90 border border-slate-800 text-[11px] flex items-center justify-between">
+            <span className="text-slate-400">
+              Plan: <span className="font-semibold text-slate-200">Free</span> ({fileCount}/{maxFiles} files)
+            </span>
+            {isLimitReached && onOpenUpgrade ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenUpgrade();
+                  onCloseMobile();
+                }}
+                className="text-amber-400 hover:text-amber-300 font-semibold cursor-pointer"
+              >
+                Upgrade
+              </button>
+            ) : null}
           </div>
 
           {/* User Profile Card & Sign Out */}

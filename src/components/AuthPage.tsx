@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react';
-import { ShieldCheck, Lock, Mail, ArrowRight, CheckCircle2, Sparkles, Send, RefreshCw } from 'lucide-react';
+import { ShieldCheck, Lock, Mail, ArrowRight, Send, RefreshCw, AlertTriangle, ExternalLink } from 'lucide-react';
 import { login, registerWithEmail, loginWithGoogle, resendVerificationEmail } from '../lib/api.ts';
 import { User as UserType } from '../types.ts';
 
@@ -94,24 +94,6 @@ export function AuthPage({ onSuccess, onToast }: AuthPageProps) {
     }
   };
 
-  const fillDemoAccount = async (demoRole: 'freelancer' | 'client') => {
-    setIsLoading(true);
-    setErrorMessage('');
-    setVerificationNotice(null);
-    try {
-      const demoEmail = demoRole === 'freelancer' ? 'alex@designer.studio' : 'sarah@acme.inc';
-      const demoPass = demoRole === 'freelancer' ? 'vault123' : 'client123';
-      const res = await login(demoEmail, demoPass);
-      onToast('success', `Signed in as Demo ${demoRole === 'freelancer' ? 'Freelancer' : 'Client'}`);
-      onSuccess(res.user);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Demo sign in failed.';
-      setErrorMessage(msg);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div id="auth-page" className="min-h-screen bg-[#F8FAFC] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       {/* Top Header */}
@@ -166,23 +148,65 @@ export function AuthPage({ onSuccess, onToast }: AuthPageProps) {
             </button>
           </div>
 
-          {/* Email Verification Banner */}
+          {/* Email Verification Banner with Gmail Spam Guidance */}
           {verificationNotice?.show && (
             <div
               id="verification-sent-notice"
-              className="mb-6 p-4 rounded-xl bg-sky-50 border border-sky-200/80 text-sky-950 text-xs"
+              className="mb-6 p-4 rounded-xl bg-sky-50 border border-sky-200/90 text-sky-950 text-xs shadow-xs"
             >
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-sky-100 text-sky-600 rounded-lg shrink-0 mt-0.5">
+                <div className="p-2 bg-sky-100 text-sky-700 rounded-lg shrink-0 mt-0.5">
                   <Mail className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="font-semibold text-slate-900 text-sm">
-                    Check your email
+                    Verification Email Sent
                   </h4>
                   <p className="mt-1 text-slate-600 leading-relaxed">
-                    A verification link was sent to <strong className="text-slate-900">{verificationNotice.email}</strong>. Please click the link in your email to verify your account, then sign in.
+                    We sent a verification link to <strong className="text-slate-900">{verificationNotice.email}</strong>.
                   </p>
+
+                  {/* Gmail Spam Alert Box */}
+                  <div className="mt-2.5 p-2.5 bg-amber-50/90 border border-amber-200 rounded-lg text-amber-950">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="text-[11px] leading-relaxed">
+                        <strong className="font-semibold text-amber-900">Important for Gmail Users:</strong>
+                        <p className="mt-0.5 text-amber-800">
+                          Gmail automated security filters frequently route Firebase verification emails to your <strong>Spam</strong> or <strong>Junk</strong> folder.
+                        </p>
+                        <p className="mt-1 text-amber-800">
+                          1. Open the email in your <strong>Spam</strong> folder.
+                          <br />
+                          2. Click <strong>"Report not spam"</strong> (this enables the verification link, as Gmail disables links inside Spam).
+                          <br />
+                          3. Click the verification link to confirm your account.
+                        </p>
+                        
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <a
+                            href="https://mail.google.com/mail/u/0/#spam"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded bg-amber-200/70 hover:bg-amber-200 text-amber-950 font-semibold text-[10px] transition-colors"
+                          >
+                            <span>Open Gmail Spam</span>
+                            <ExternalLink className="w-2.5 h-2.5" />
+                          </a>
+                          <a
+                            href="https://mail.google.com/mail/u/0/#search/from%3Afirebaseapp.com"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded bg-amber-200/70 hover:bg-amber-200 text-amber-950 font-semibold text-[10px] transition-colors"
+                          >
+                            <span>Search "firebaseapp.com" in Gmail</span>
+                            <ExternalLink className="w-2.5 h-2.5" />
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="mt-3 flex items-center gap-3">
                     <button
                       type="button"
@@ -192,13 +216,13 @@ export function AuthPage({ onSuccess, onToast }: AuthPageProps) {
                       className="inline-flex items-center gap-1 font-semibold text-sky-700 hover:text-sky-800 cursor-pointer disabled:opacity-50"
                     >
                       <RefreshCw className={`w-3 h-3 ${isResending ? 'animate-spin' : ''}`} />
-                      <span>{isResending ? 'Resending...' : 'Resend email'}</span>
+                      <span>{isResending ? 'Resending...' : 'Resend verification email'}</span>
                     </button>
                     <span className="text-slate-300">•</span>
                     <button
                       type="button"
                       onClick={() => setVerificationNotice(null)}
-                      className="text-slate-500 hover:text-slate-700 cursor-pointer"
+                      className="text-slate-500 hover:text-slate-700 cursor-pointer font-medium"
                     >
                       Dismiss
                     </button>
@@ -246,7 +270,11 @@ export function AuthPage({ onSuccess, onToast }: AuthPageProps) {
                 />
               </svg>
               <span>{isSignUp ? 'Register with Google' : 'Sign in with Google'}</span>
+              <span className="text-[10px] bg-emerald-50 text-emerald-700 font-semibold px-1.5 py-0.5 rounded border border-emerald-200">Instant</span>
             </button>
+            <p className="text-[11px] text-center text-slate-500 mt-1.5">
+              Recommended for Gmail — pre-verified by Google with no spam filter issues
+            </p>
 
             <div className="relative my-5">
               <div className="absolute inset-0 flex items-center">
@@ -323,49 +351,6 @@ export function AuthPage({ onSuccess, onToast }: AuthPageProps) {
               </button>
             </div>
           </form>
-
-          {/* Quick Demo Login Helpers - Available on both Registration and Login */}
-          <div id="demo-accounts-section" className="mt-8 pt-6 border-t border-slate-100">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>Instant Demo Accounts</span>
-              </div>
-              <span className="text-[10px] text-slate-400 font-medium">
-                {isSignUp ? 'Or test pre-seeded roles' : '1-click sign in'}
-              </span>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                id="quick-demo-freelancer"
-                onClick={() => fillDemoAccount('freelancer')}
-                disabled={isLoading}
-                className="flex flex-col items-start p-2.5 rounded-lg border border-slate-200 hover:border-sky-300 hover:bg-sky-50/40 text-left transition-colors cursor-pointer group"
-              >
-                <div className="flex items-center gap-1 text-xs font-semibold text-slate-900 group-hover:text-sky-700">
-                  <CheckCircle2 className="w-3 h-3 text-sky-600" />
-                  <span>Freelancer View</span>
-                </div>
-                <span className="text-[11px] text-slate-500">Alex Rivera</span>
-              </button>
-
-              <button
-                type="button"
-                id="quick-demo-client"
-                onClick={() => fillDemoAccount('client')}
-                disabled={isLoading}
-                className="flex flex-col items-start p-2.5 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40 text-left transition-colors cursor-pointer group"
-              >
-                <div className="flex items-center gap-1 text-xs font-semibold text-slate-900 group-hover:text-indigo-700">
-                  <CheckCircle2 className="w-3 h-3 text-indigo-600" />
-                  <span>Client View</span>
-                </div>
-                <span className="text-[11px] text-slate-500">Sarah Chen (Acme)</span>
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Security Assurance Badge */}
